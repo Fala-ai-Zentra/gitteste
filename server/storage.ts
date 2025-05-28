@@ -6,6 +6,13 @@ import {
   files,
   integrations,
   metrics,
+  agentPersonalities,
+  externalLeads,
+  externalMessages,
+  learningPatterns,
+  webhookConfigs,
+  leadActivity,
+  conversionAttempts,
   type User,
   type UpsertUser,
   type Lead,
@@ -20,6 +27,20 @@ import {
   type InsertIntegration,
   type Metric,
   type InsertMetric,
+  type AgentPersonality,
+  type InsertAgentPersonality,
+  type ExternalLead,
+  type InsertExternalLead,
+  type ExternalMessage,
+  type InsertExternalMessage,
+  type LearningPattern,
+  type InsertLearningPattern,
+  type WebhookConfig,
+  type InsertWebhookConfig,
+  type LeadActivity,
+  type InsertLeadActivity,
+  type ConversionAttempt,
+  type InsertConversionAttempt,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, sql } from "drizzle-orm";
@@ -70,6 +91,43 @@ export interface IStorage {
     filesProcessed: number;
     revenue: number;
   }>;
+
+  // Agent Personality operations
+  getAgentPersonalities(userId: string): Promise<AgentPersonality[]>;
+  getAgentPersonality(id: number, userId: string): Promise<AgentPersonality | undefined>;
+  createAgentPersonality(personality: InsertAgentPersonality): Promise<AgentPersonality>;
+  updateAgentPersonality(id: number, personality: Partial<InsertAgentPersonality>, userId: string): Promise<AgentPersonality>;
+  deleteAgentPersonality(id: number, userId: string): Promise<void>;
+
+  // External Lead operations
+  getExternalLeads(userId: string): Promise<ExternalLead[]>;
+  getExternalLead(id: number, userId: string): Promise<ExternalLead | undefined>;
+  getExternalLeadByExternalId(externalId: string, platform: string, userId: string): Promise<ExternalLead | undefined>;
+  createExternalLead(lead: InsertExternalLead): Promise<ExternalLead>;
+  updateExternalLead(id: number, lead: Partial<InsertExternalLead>, userId: string): Promise<ExternalLead>;
+  deleteExternalLead(id: number, userId: string): Promise<void>;
+
+  // External Message operations
+  getExternalMessages(externalLeadId: number): Promise<ExternalMessage[]>;
+  createExternalMessage(message: InsertExternalMessage): Promise<ExternalMessage>;
+
+  // Learning Pattern operations
+  getLearningPatterns(externalLeadId: number): Promise<LearningPattern[]>;
+  createLearningPattern(pattern: InsertLearningPattern): Promise<LearningPattern>;
+  updateLearningPattern(id: number, pattern: Partial<InsertLearningPattern>): Promise<LearningPattern>;
+
+  // Webhook Config operations
+  getWebhookConfigs(userId: string): Promise<WebhookConfig[]>;
+  createWebhookConfig(config: InsertWebhookConfig): Promise<WebhookConfig>;
+  updateWebhookConfig(id: number, config: Partial<InsertWebhookConfig>, userId: string): Promise<WebhookConfig>;
+
+  // Lead Activity operations
+  getLeadActivity(externalLeadId: number): Promise<LeadActivity[]>;
+  createLeadActivity(activity: InsertLeadActivity): Promise<LeadActivity>;
+
+  // Conversion Attempt operations
+  getConversionAttempts(externalLeadId: number): Promise<ConversionAttempt[]>;
+  createConversionAttempt(attempt: InsertConversionAttempt): Promise<ConversionAttempt>;
 }
 
 export class DatabaseStorage implements IStorage {
