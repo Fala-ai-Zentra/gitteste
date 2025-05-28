@@ -13,7 +13,8 @@ import {
   Menu,
   X,
   LogOut,
-  User
+  User,
+  Brain
 } from "lucide-react";
 
 interface SidebarProps {
@@ -39,6 +40,13 @@ export default function Sidebar({ isOpen, onToggle }: SidebarProps) {
       icon: Bot,
       color: "text-pink-400",
       hoverColor: "hover:bg-pink-500/20"
+    },
+    {
+      path: "/eidos-agent",
+      label: "Eidos Agent",
+      icon: Brain,
+      color: "text-purple-400",
+      hoverColor: "hover:bg-purple-500/20"
     },
     {
       path: "/leads",
