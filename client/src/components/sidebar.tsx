@@ -14,7 +14,8 @@ import {
   X,
   LogOut,
   User,
-  Brain
+  Brain,
+  TrendingUp
 } from "lucide-react";
 
 interface SidebarProps {
@@ -47,6 +48,13 @@ export default function Sidebar({ isOpen, onToggle }: SidebarProps) {
       icon: Brain,
       color: "text-purple-400",
       hoverColor: "hover:bg-purple-500/20"
+    },
+    {
+      path: "/estrategista-ia",
+      label: "Estrategista IA",
+      icon: TrendingUp,
+      color: "text-cyan-400",
+      hoverColor: "hover:bg-cyan-500/20"
     },
     {
       path: "/leads",

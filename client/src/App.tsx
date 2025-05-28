@@ -12,6 +12,7 @@ import Files from "@/pages/files";
 import Integrations from "@/pages/integrations";
 import Settings from "@/pages/settings";
 import EidosAgent from "@/pages/eidos-agent";
+import EstrategistaIA from "@/pages/estrategista-ia";
 import Sidebar from "@/components/sidebar";
 import NotFound from "@/pages/not-found";
 import { useState } from "react";
@@ -52,6 +53,7 @@ function Router() {
           <Route path="/files" component={Files} />
           <Route path="/integrations" component={Integrations} />
           <Route path="/eidos-agent" component={EidosAgent} />
+          <Route path="/estrategista-ia" component={EstrategistaIA} />
           <Route path="/settings" component={Settings} />
           <Route component={NotFound} />
         </Switch>
