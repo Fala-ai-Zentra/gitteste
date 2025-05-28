@@ -1,84 +1,66 @@
-import { Switch, Route } from "wouter";
-import { queryClient } from "./lib/queryClient";
-import { QueryClientProvider } from "@tanstack/react-query";
-import { Toaster } from "@/components/ui/toaster";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { useAuth } from "@/hooks/useAuth";
-import Landing from "@/pages/landing";
-import Dashboard from "@/pages/dashboard";
-import Chat from "@/pages/chat";
-import Leads from "@/pages/leads";
-import Files from "@/pages/files";
-import Integrations from "@/pages/integrations";
-import Settings from "@/pages/settings";
-import EidosAgent from "@/pages/eidos-agent";
-import EstrategistaIA from "@/pages/estrategista-ia";
-import Sidebar from "@/components/sidebar";
-import NotFound from "@/pages/not-found";
+
 import { useState } from "react";
 
-function Router() {
-  const { isAuthenticated, isLoading } = useAuth();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-black via-gray-900 to-black flex items-center justify-center">
-        <div className="glass-morphism rounded-xl p-8">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
-          <p className="text-white mt-4">Carregando...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!isAuthenticated) {
-    return (
-      <Switch>
-        <Route path="/" component={Landing} />
-        <Route component={Landing} />
-      </Switch>
-    );
-  }
-
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-black via-gray-900 to-black">
-      <Sidebar isOpen={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} />
-      
-      <div className="lg:ml-64 min-h-screen transition-all duration-300">
-        <Switch>
-          <Route path="/" component={Dashboard} />
-          <Route path="/chat" component={Chat} />
-          <Route path="/leads" component={Leads} />
-          <Route path="/files" component={Files} />
-          <Route path="/integrations" component={Integrations} />
-          <Route path="/eidos-agent" component={EidosAgent} />
-          <Route path="/estrategista-ia" component={EstrategistaIA} />
-          <Route path="/settings" component={Settings} />
-          <Route component={NotFound} />
-        </Switch>
-      </div>
-
-      {sidebarOpen && (
-        <div 
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-30 lg:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
-    </div>
-  );
-}
+const personas = ["Sedutora", "Curiosa", "Dominadora", "Profissional", "Mutante"];
 
 function App() {
+  const [message, setMessage] = useState("");
+  const [response, setResponse] = useState("");
+  const [persona, setPersona] = useState("Sedutora");
+
+  const sendMessage = async () => {
+    const res = await fetch("/api/message", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message, userId: "admin" }),
+    });
+    const data = await res.json();
+    setResponse(data.response);
+  };
+
+  const switchPersona = async (p: string) => {
+    setPersona(p);
+    await fetch("/api/persona", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId: "admin", persona: p }),
+    });
+  };
+
   return (
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <div className="dark">
-          <Toaster />
-          <Router />
-        </div>
-      </TooltipProvider>
-    </QueryClientProvider>
+    <div className="min-h-screen bg-black text-white p-6">
+      <h1 className="text-3xl font-bold mb-4 text-pink-500">Eidos Connect IA</h1>
+
+      <div className="flex gap-3 mb-4">
+        {personas.map((p) => (
+          <button
+            key={p}
+            onClick={() => switchPersona(p)}
+            className={`px-4 py-2 rounded ${persona === p ? "bg-pink-500" : "bg-gray-700"}`}
+          >
+            {p}
+          </button>
+        ))}
+      </div>
+
+      <div className="bg-gray-800 p-4 rounded shadow mb-4">
+        <p className="text-green-400">Modo atual: {persona}</p>
+        <p className="mt-2 text-sm text-gray-300">Resposta da IA:</p>
+        <p className="italic mt-1">{response}</p>
+      </div>
+
+      <div className="flex gap-2">
+        <input
+          type="text"
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+          className="flex-1 p-2 rounded bg-gray-700 border border-gray-600"
+        />
+        <button onClick={sendMessage} className="bg-pink-600 px-4 py-2 rounded text-white">
+          Enviar
+        </button>
+      </div>
+    </div>
   );
 }
 

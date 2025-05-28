@@ -45,6 +45,20 @@ import {
 import { db } from "./db";
 import { eq, desc, and, sql } from "drizzle-orm";
 
+export const getProfile = async (userId: string) => {
+  const [user] = await db.select().from(users).where(eq(users.id, userId));
+  return user || null;
+};
+
+export const setProfile = async (userId: string, updates: Partial<UpsertUser>) => {
+  const [user] = await db
+    .update(users)
+    .set({ ...updates, updatedAt: new Date() })
+    .where(eq(users.id, userId))
+    .returning();
+  return user;
+};
+
 // Interface for storage operations
 export interface IStorage {
   // User operations (IMPORTANT) these user operations are mandatory for Replit Auth.
