@@ -7,9 +7,13 @@ import {
   insertConversationSchema, 
   insertMessageSchema,
   insertFileSchema,
-  insertIntegrationSchema 
+  insertIntegrationSchema,
+  insertAgentPersonalitySchema,
+  insertExternalLeadSchema,
+  insertWebhookConfigSchema
 } from "@shared/schema";
 import { generateAIResponse, analyzeLeadData } from "./openai";
+import { processWebhookMessage, EidosAgent } from "./eidosAgent";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
@@ -315,6 +319,216 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error deleting integration:", error);
       res.status(500).json({ message: "Failed to delete integration" });
+    }
+  });
+
+  // === EIDOS AGENT ROUTES ===
+
+  // Agent Personalities
+  app.get('/api/agent/personalities', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const personalities = await storage.getAgentPersonalities(userId);
+      res.json(personalities);
+    } catch (error) {
+      console.error('Error fetching agent personalities:', error);
+      res.status(500).json({ message: 'Failed to fetch agent personalities' });
+    }
+  });
+
+  app.post('/api/agent/personalities', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const personalityData = insertAgentPersonalitySchema.parse({
+        ...req.body,
+        userId
+      });
+      
+      const personality = await storage.createAgentPersonality(personalityData);
+      res.status(201).json(personality);
+    } catch (error) {
+      console.error('Error creating agent personality:', error);
+      res.status(400).json({ message: 'Failed to create agent personality' });
+    }
+  });
+
+  // External Leads (Leads from WhatsApp/ManyChat)
+  app.get('/api/external-leads', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const leads = await storage.getExternalLeads(userId);
+      res.json(leads);
+    } catch (error) {
+      console.error('Error fetching external leads:', error);
+      res.status(500).json({ message: 'Failed to fetch external leads' });
+    }
+  });
+
+  app.get('/api/external-leads/:id/messages', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const leadId = parseInt(req.params.id);
+      
+      const lead = await storage.getExternalLead(leadId, userId);
+      if (!lead) {
+        return res.status(404).json({ message: 'Lead not found' });
+      }
+      
+      const messages = await storage.getExternalMessages(leadId);
+      res.json(messages);
+    } catch (error) {
+      console.error('Error fetching external messages:', error);
+      res.status(500).json({ message: 'Failed to fetch messages' });
+    }
+  });
+
+  // Manual conversion attempt
+  app.post('/api/external-leads/:id/convert', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const leadId = parseInt(req.params.id);
+      const { strategy } = req.body;
+      
+      const lead = await storage.getExternalLead(leadId, userId);
+      if (!lead) {
+        return res.status(404).json({ message: 'Lead not found' });
+      }
+      
+      const agent = new EidosAgent(userId);
+      const result = await agent.attemptConversion(leadId, strategy);
+      
+      res.json(result);
+    } catch (error) {
+      console.error('Error attempting conversion:', error);
+      res.status(500).json({ message: 'Failed to attempt conversion' });
+    }
+  });
+
+  // Webhook Configurations
+  app.get('/api/webhooks', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const webhooks = await storage.getWebhookConfigs(userId);
+      res.json(webhooks);
+    } catch (error) {
+      console.error('Error fetching webhook configs:', error);
+      res.status(500).json({ message: 'Failed to fetch webhook configs' });
+    }
+  });
+
+  app.post('/api/webhooks', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const webhookData = insertWebhookConfigSchema.parse({
+        ...req.body,
+        userId
+      });
+      
+      const webhook = await storage.createWebhookConfig(webhookData);
+      res.status(201).json(webhook);
+    } catch (error) {
+      console.error('Error creating webhook config:', error);
+      res.status(400).json({ message: 'Failed to create webhook config' });
+    }
+  });
+
+  // === WEBHOOK ENDPOINTS FOR EXTERNAL PLATFORMS ===
+
+  // Generic webhook for ManyChat, WhatsApp, etc.
+  app.post('/webhook/:platform/:userId', async (req, res) => {
+    try {
+      const { platform, userId } = req.params;
+      const { sender, message } = req.body;
+      
+      if (!sender?.id || !message?.text) {
+        return res.status(400).json({ message: 'Invalid webhook payload' });
+      }
+      
+      const result = await processWebhookMessage(
+        userId,
+        sender.id,
+        platform,
+        message.text,
+        sender
+      );
+      
+      res.json({
+        success: true,
+        response: result.response,
+        delay: result.delay
+      });
+      
+    } catch (error) {
+      console.error('Webhook error:', error);
+      res.status(500).json({ message: 'Webhook processing failed' });
+    }
+  });
+
+  // ManyChat specific webhook
+  app.post('/webhook/manychat/:userId', async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const { subscriber, text } = req.body;
+      
+      if (!subscriber?.id || !text) {
+        return res.status(400).json({ message: 'Invalid ManyChat webhook' });
+      }
+      
+      const result = await processWebhookMessage(
+        userId,
+        subscriber.id,
+        'manychat',
+        text,
+        {
+          name: subscriber.name,
+          phone: subscriber.phone,
+          email: subscriber.email
+        }
+      );
+      
+      res.json({
+        version: "v2",
+        content: {
+          messages: [{
+            type: "text",
+            text: result.response,
+            delay: result.delay
+          }]
+        }
+      });
+      
+    } catch (error) {
+      console.error('ManyChat webhook error:', error);
+      res.status(500).json({ message: 'ManyChat webhook failed' });
+    }
+  });
+
+  // Lead Radar - Real-time monitoring
+  app.get('/api/lead-radar', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const leads = await storage.getExternalLeads(userId);
+      
+      const now = new Date();
+      const radar = {
+        activeNow: leads.filter(lead => 
+          lead.lastInteraction && 
+          (now.getTime() - new Date(lead.lastInteraction).getTime()) < 5 * 60 * 1000
+        ),
+        hotLeads: leads.filter(lead => 
+          (lead.conversionScore || 0) >= 7
+        ),
+        coldLeads: leads.filter(lead => 
+          lead.lastInteraction && 
+          (now.getTime() - new Date(lead.lastInteraction).getTime()) > 24 * 60 * 60 * 1000
+        ),
+        totalLeads: leads.length
+      };
+      
+      res.json(radar);
+    } catch (error) {
+      console.error('Error fetching lead radar:', error);
+      res.status(500).json({ message: 'Failed to fetch lead radar' });
     }
   });
 

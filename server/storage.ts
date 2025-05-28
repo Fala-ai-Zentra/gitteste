@@ -367,6 +367,189 @@ export class DatabaseStorage implements IStorage {
       revenue: revenueMetrics[0]?.value || 0,
     };
   }
+
+  // Agent Personality operations
+  async getAgentPersonalities(userId: string): Promise<AgentPersonality[]> {
+    return await db.select().from(agentPersonalities).where(eq(agentPersonalities.userId, userId));
+  }
+
+  async getAgentPersonality(id: number, userId: string): Promise<AgentPersonality | undefined> {
+    const [personality] = await db
+      .select()
+      .from(agentPersonalities)
+      .where(and(eq(agentPersonalities.id, id), eq(agentPersonalities.userId, userId)));
+    return personality;
+  }
+
+  async createAgentPersonality(personality: InsertAgentPersonality): Promise<AgentPersonality> {
+    const [newPersonality] = await db
+      .insert(agentPersonalities)
+      .values(personality)
+      .returning();
+    return newPersonality;
+  }
+
+  async updateAgentPersonality(id: number, personality: Partial<InsertAgentPersonality>, userId: string): Promise<AgentPersonality> {
+    const [updated] = await db
+      .update(agentPersonalities)
+      .set(personality)
+      .where(and(eq(agentPersonalities.id, id), eq(agentPersonalities.userId, userId)))
+      .returning();
+    return updated;
+  }
+
+  async deleteAgentPersonality(id: number, userId: string): Promise<void> {
+    await db
+      .delete(agentPersonalities)
+      .where(and(eq(agentPersonalities.id, id), eq(agentPersonalities.userId, userId)));
+  }
+
+  // External Lead operations
+  async getExternalLeads(userId: string): Promise<ExternalLead[]> {
+    return await db.select().from(externalLeads).where(eq(externalLeads.userId, userId)).orderBy(desc(externalLeads.lastInteraction));
+  }
+
+  async getExternalLead(id: number, userId: string): Promise<ExternalLead | undefined> {
+    const [lead] = await db
+      .select()
+      .from(externalLeads)
+      .where(and(eq(externalLeads.id, id), eq(externalLeads.userId, userId)));
+    return lead;
+  }
+
+  async getExternalLeadByExternalId(externalId: string, platform: string, userId: string): Promise<ExternalLead | undefined> {
+    const [lead] = await db
+      .select()
+      .from(externalLeads)
+      .where(and(
+        eq(externalLeads.externalId, externalId), 
+        eq(externalLeads.platform, platform),
+        eq(externalLeads.userId, userId)
+      ));
+    return lead;
+  }
+
+  async createExternalLead(lead: InsertExternalLead): Promise<ExternalLead> {
+    const [newLead] = await db
+      .insert(externalLeads)
+      .values(lead)
+      .returning();
+    return newLead;
+  }
+
+  async updateExternalLead(id: number, lead: Partial<InsertExternalLead>, userId: string): Promise<ExternalLead> {
+    const [updated] = await db
+      .update(externalLeads)
+      .set({ ...lead, updatedAt: new Date() })
+      .where(and(eq(externalLeads.id, id), eq(externalLeads.userId, userId)))
+      .returning();
+    return updated;
+  }
+
+  async deleteExternalLead(id: number, userId: string): Promise<void> {
+    await db
+      .delete(externalLeads)
+      .where(and(eq(externalLeads.id, id), eq(externalLeads.userId, userId)));
+  }
+
+  // External Message operations
+  async getExternalMessages(externalLeadId: number): Promise<ExternalMessage[]> {
+    return await db
+      .select()
+      .from(externalMessages)
+      .where(eq(externalMessages.externalLeadId, externalLeadId))
+      .orderBy(desc(externalMessages.createdAt));
+  }
+
+  async createExternalMessage(message: InsertExternalMessage): Promise<ExternalMessage> {
+    const [newMessage] = await db
+      .insert(externalMessages)
+      .values(message)
+      .returning();
+    return newMessage;
+  }
+
+  // Learning Pattern operations
+  async getLearningPatterns(externalLeadId: number): Promise<LearningPattern[]> {
+    return await db
+      .select()
+      .from(learningPatterns)
+      .where(eq(learningPatterns.externalLeadId, externalLeadId))
+      .orderBy(desc(learningPatterns.successRate));
+  }
+
+  async createLearningPattern(pattern: InsertLearningPattern): Promise<LearningPattern> {
+    const [newPattern] = await db
+      .insert(learningPatterns)
+      .values(pattern)
+      .returning();
+    return newPattern;
+  }
+
+  async updateLearningPattern(id: number, pattern: Partial<InsertLearningPattern>): Promise<LearningPattern> {
+    const [updated] = await db
+      .update(learningPatterns)
+      .set(pattern)
+      .where(eq(learningPatterns.id, id))
+      .returning();
+    return updated;
+  }
+
+  // Webhook Config operations
+  async getWebhookConfigs(userId: string): Promise<WebhookConfig[]> {
+    return await db.select().from(webhookConfigs).where(eq(webhookConfigs.userId, userId));
+  }
+
+  async createWebhookConfig(config: InsertWebhookConfig): Promise<WebhookConfig> {
+    const [newConfig] = await db
+      .insert(webhookConfigs)
+      .values(config)
+      .returning();
+    return newConfig;
+  }
+
+  async updateWebhookConfig(id: number, config: Partial<InsertWebhookConfig>, userId: string): Promise<WebhookConfig> {
+    const [updated] = await db
+      .update(webhookConfigs)
+      .set(config)
+      .where(and(eq(webhookConfigs.id, id), eq(webhookConfigs.userId, userId)))
+      .returning();
+    return updated;
+  }
+
+  // Lead Activity operations
+  async getLeadActivity(externalLeadId: number): Promise<LeadActivity[]> {
+    return await db
+      .select()
+      .from(leadActivity)
+      .where(eq(leadActivity.externalLeadId, externalLeadId))
+      .orderBy(desc(leadActivity.timestamp));
+  }
+
+  async createLeadActivity(activity: InsertLeadActivity): Promise<LeadActivity> {
+    const [newActivity] = await db
+      .insert(leadActivity)
+      .values(activity)
+      .returning();
+    return newActivity;
+  }
+
+  // Conversion Attempt operations
+  async getConversionAttempts(externalLeadId: number): Promise<ConversionAttempt[]> {
+    return await db
+      .select()
+      .from(conversionAttempts)
+      .where(eq(conversionAttempts.externalLeadId, externalLeadId))
+      .orderBy(desc(conversionAttempts.timestamp));
+  }
+
+  async createConversionAttempt(attempt: InsertConversionAttempt): Promise<ConversionAttempt> {
+    const [newAttempt] = await db
+      .insert(conversionAttempts)
+      .values(attempt)
+      .returning();
+    return newAttempt;
+  }
 }
 
 export const storage = new DatabaseStorage();
